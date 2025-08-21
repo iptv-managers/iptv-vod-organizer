@@ -78,7 +78,6 @@ export async function createTMDB() {
     await organizeMovies(streams, categories, true);
 
     console.log(`🎉 Organização de filmes concluída!`);
-    process.exit(1);
 }
 
 async function fetchFromTMDB(stream, existingCategories) {
@@ -261,5 +260,4 @@ export async function categorizeMovies(streams, categories) {
 
     await organizeMovies(allResults, mappedCategories, false);
     console.log(`🎉 Organização de filmes concluída!`);
-    process.exit(1);
 }
