@@ -54,12 +54,6 @@
         "genreId": 99
     },
     {
-        "id": 10,
-        "name": "Filmes | Documentário",
-        "type": "genre",
-        "genreId": 99
-    },
-    {
         "id": 11,
         "name": "Filmes | Drama",
         "type": "genre",
