@@ -6,7 +6,7 @@ import { allGenresMovies } from "../utils/get-genre-id.js";
 
 export function getGenreIds(stream, categories) {
     if (!stream) {
-        return false;
+        return [];
     }
     const categoriesIds = [];
 
@@ -31,7 +31,7 @@ export function getGenreIds(stream, categories) {
                 });
             }
         }
-        // Se não encontrar o gênero, retorna um array vazio
-        return [];
     }
+    // Se não encontrar o gênero, retorna um array vazio
+    return categoriesIds;
 }
