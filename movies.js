@@ -42,7 +42,6 @@ export async function createTMDB() {
         FROM streams
         WHERE type = 2`
     );
-
     console.log(`Total de filmes encontrados: ${(rows).length}`);
 
     // Consultampos as categorias existentes no banco de dados
@@ -83,18 +82,19 @@ export async function createTMDB() {
 async function fetchFromTMDB(stream, existingCategories) {
     try {
         let tmdbData;
-
-        // 1 - Se já tem TMDB ID, busca direto
+        if(!stream || (!stream.stream_display_name && !stream.tmdb_id)) {
+            console.log(stream);
+            return;
+        }
         if (stream.tmdb_id) {
+            // Se já tem o ID, busca direto
             const { data } = await axios.get(
                 `https://api.themoviedb.org/3/movie/${stream.tmdb_id}`,
                 { params: { api_key: TMDB_API_KEY, language: TMDB_LANGUAGE } }
             );
             tmdbData = data;
-        }
-
-        // 2 - Se não encontrou pelo ID, busca por nome + ano
-        if (!tmdbData) {
+        } else {
+            // 2 - Se não encontrou pelo ID, busca por nome + ano
             const query = stream.stream_display_name;
             const { data } = await axios.get(
                 `https://api.themoviedb.org/3/search/movie`,
@@ -110,6 +110,32 @@ async function fetchFromTMDB(stream, existingCategories) {
 
             if (data.results && data.results.length > 0) {
                 tmdbData = data.results[0];
+            }
+        }
+
+        if (!tmdbData) {
+            // Se não tem o data, procura pelo apenas
+            const { data } = await axios.get(
+                `https://api.themoviedb.org/3/search/movie`,
+                { 
+                    params: { 
+                        api_key: TMDB_API_KEY, 
+                        language: TMDB_LANGUAGE,
+                        query: cleanName(stream.stream_display_name)
+                    } 
+                }
+            );
+
+            if (data.results && data.results.length > 0) {
+                const firstResult = data.results[0];
+                
+                // Se quiser buscar os detalhes completos:
+                const { data: details } = await axios.get(
+                    `https://api.themoviedb.org/3/${firstResult.media_type}/${firstResult.id}`,
+                    { params: { api_key: TMDB_API_KEY, language: TMDB_LANGUAGE } }
+                );
+
+                tmdbData = details;
             }
         }
 
@@ -149,7 +175,7 @@ async function fetchFromTMDB(stream, existingCategories) {
         };
     }
 }
-export async function organizeMovies(streams, categories, createCategories = true) {
+export async function organizeMovies(streams, categories, createCategories = true, silent = false) {
     if(createCategories) {
         categories = await createCategories(categories);
     }
@@ -158,7 +184,7 @@ export async function organizeMovies(streams, categories, createCategories = tru
         const category_ids = [];
         if(isAdult(stream)){
             category_ids.push(categories.find(cat => cat.type === 'adult')?.id);
-            await updateCategories(stream, category_ids);
+            await updateCategories(stream, category_ids, silent);
             continue; // Se for adulto, não adiciona mais categorias
         }
         if(isSubtitled(stream)) {
@@ -171,7 +197,7 @@ export async function organizeMovies(streams, categories, createCategories = tru
         if(category_ids.length === 0) {
             category_ids.push(categories.find(cat => cat.type === 'uncategorized')?.id);
         }
-        await updateCategories(stream, category_ids);
+        await updateCategories(stream, category_ids, silent);
 
     }
 }
@@ -213,12 +239,14 @@ async function mapCategories(categories) {
     }
     return categories.filter(cat => cat.id !== null); // Filtra categorias sem ID
 }
-async function updateCategories(stream, categories) {
+async function updateCategories(stream, categories, silent = false) {
     await db.query(
         `UPDATE streams SET category_id = ? WHERE id = ?`,
         [JSON.stringify(categories), stream.id]
     );
-    console.log(`Categorias atualizadas para: ${stream.stream_display_name} => [${categories.join(', ')}]`);
+    if(silent === false) {
+        console.log(`Categorias atualizadas para: ${stream.stream_display_name} => [${categories.join(', ')}]`);
+    }
 }
 
 /**
@@ -237,10 +265,16 @@ async function updateCategories(stream, categories) {
     "tmdb_id": null
   },]
  */
-export async function categorizeMovies(streams, categories) {
+export async function categorizeMovies(streams, categories, silent = false) {
     if(!categories || categories.length === 0) { 
         categories = JSON.parse(fs.readFileSync('./cat-movies.json', 'utf-8'));
     }
+    
+    // Filtramos filmes e series que nao contenham nomes e que podem vir
+    // com bug da tabela do cliente, afinal filmes sem nomes não existem rs
+    streams = streams.filter((row) => {
+        return row.stream_display_name
+    });
         
     const mappedCategories = await mapCategories(categories);
     const allResults = [];
@@ -248,16 +282,20 @@ export async function categorizeMovies(streams, categories) {
     // Processa em chunks
     for (let i = 0; i < streams.length; i += CHUNK_SIZE) {
         const chunk = streams.slice(i, i + CHUNK_SIZE);
-        console.log(`Processando chunk ${Math.floor(i / CHUNK_SIZE) + 1} (${chunk.length} filmes)`);
+        if(silent === false) {
+            console.log(`Processando chunk ${Math.floor(i / CHUNK_SIZE) + 1} (${chunk.length} filmes)`);
+        }
 
         const processedChunk = await Promise.all(
             chunk.map((stream) => limit(() => fetchFromTMDB(stream, mappedCategories)))
         );
 
         allResults.push(...processedChunk);
-        console.log(`✅ Chunk processado. Total acumulado: ${allResults.length}`);
+        if(silent === false) {
+            console.log(`✅ Chunk processado. Total acumulado: ${allResults.length}`);
+        }
     }
 
-    await organizeMovies(allResults, mappedCategories, false);
+    await organizeMovies(allResults, mappedCategories, false, silent);
     console.log(`🎉 Organização de filmes concluída!`);
 }

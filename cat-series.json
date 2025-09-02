@@ -1,0 +1,93 @@
+[
+    {
+        "id": 1,
+        "name": "Lançamentos 2025",
+        "type": "year",
+        "year": 2025
+    },
+    {
+        "id": 2,
+        "name": "Lançamentos 2024",
+        "type": "year",
+        "year": 2024
+    },
+    {
+        "id": 3,
+        "name": "Lançamentos 2023",
+        "type": "year",
+        "year": 2023
+    },
+    {
+        "id": 4,
+        "name": "Séries | Netflix",
+        "type": "stream",
+        "streamName": "netflix"
+    },
+    {
+        "id": 5,
+        "name": "Séries | Amazon Prime",
+        "type": "stream",
+        "streamName": "amazon"
+    },
+    {
+        "id": 6,
+        "name": "Séries | Disney",
+        "type": "stream",
+        "streamName": "disney"
+    },
+    {
+        "id": 7,
+        "name": "Séries | HBO Max",
+        "type": "stream",
+        "streamName": "hbo"
+    },
+    {
+        "id": 8,
+        "name": "Séries | Paramount",
+        "type": "stream",
+        "streamName": "paramount"
+    },
+    {
+        "id": 9,
+        "name": "Séries | Apple TV",
+        "type": "stream",
+        "streamName": "apple"
+    },
+    {
+        "id": 10,
+        "name": "Séries | Crunchyroll",
+        "type": "stream",
+        "streamName": "crunchyroll"
+    },
+    {
+        "id": 11,
+        "name": "Séries | Looke",
+        "type": "stream",
+        "streamName": "looke"
+    },
+    {
+        "id": 12,
+        "name": "Séries | Novelas",
+        "type": "novelas"
+    },
+    {
+        "id": 13,
+        "name": "Séries | Novelas Turcas",
+        "type": "novelasturcas"
+    },
+    {
+        "id": 14,
+        "name": "Séries | Doramas",
+        "type": "doramas"
+    },
+    {
+        "id": 15000,
+        "name": "Séries | Outras",
+        "type": "uncategorized"
+    },
+    {
+        "id": 20000,
+        "name": "Séries | Legendadas",
+        "type": "subtitled"
+    }
+]
