@@ -1,6 +1,6 @@
 {
   "name": "iptv-vod-organizer",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Um organizador de VODs por categoria para facilitar dentro do XUI.one",
   "main": "movies.js",
   "scripts": {
