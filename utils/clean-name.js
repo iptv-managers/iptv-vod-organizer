@@ -1,4 +1,5 @@
 export function cleanName(name) {
+    if(!name || name == '') return '';
     // Remove acentos e caracteres especiais
     name = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     name = name.replace(/[^a-zA-Z0-9\s]/g, "");
@@ -17,6 +18,15 @@ export function cleanName(name) {
 
     // Remove tags 4K
     name = name.toLowerCase().trim().replace("(4k)", "");
+
+    // Remove tags 4K
+    name = name.toLowerCase().trim().replace(" 4k", "");
+
+    // Remove tags hdr
+    name = name.toLowerCase().trim().replace("[hdr]", "");
+
+    // Remove tags 4K
+    name = name.toLowerCase().trim().replace("[hybrid]", "");
 
     // Remove tags legendadas
     name = name.trim().replace("(LENGENDADO)", "");
