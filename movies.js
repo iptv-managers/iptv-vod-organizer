@@ -20,13 +20,9 @@ import pLimit from "p-limit";
 import { cleanName } from "./utils/clean-name.js";
 import { isSubtitled } from "./validations/is-subtitled.js";
 import { isAdult } from "./validations/is-adult.js";
-import { db } from "./utils/database.js";
 import { getGenreIds } from "./validations/get-genre.js";
 import { getYears } from "./validations/get-years.js";
-
-const {
-    TMDB_API_KEY, OUTPUT_FILE, TMDB_LANGUAGE,
-} = process.env;
+import { getDatabase } from "./utils/database.js";
 
 const CHUNK_SIZE = 500;
 const CONCURRENCY_LIMIT = 30; // Limite de requisições concorrentes
@@ -37,6 +33,11 @@ let existingCategories = [];
 const limit = pLimit(CONCURRENCY_LIMIT);
 
 export async function createTMDB() {
+    const db = await getDatabase();
+    const {
+    OUTPUT_FILE,
+    } = process.env;
+
     const [rows] = await db.query(
         `SELECT id, category_id, stream_display_name, movie_properties, year, tmdb_id
         FROM streams
@@ -79,8 +80,12 @@ export async function createTMDB() {
     console.log(`🎉 Organização de filmes concluída!`);
 }
 
-async function fetchFromTMDB(stream, existingCategories) {
+async function fetchFromTMDB(stream, existingCategories, silent = false) {
     try {
+        const {
+            TMDB_API_KEY, TMDB_LANGUAGE,
+        } = process.env;
+
         let tmdbData;
         if(!stream || (!stream.stream_display_name && !stream.tmdb_id)) {
             console.log(stream);
@@ -139,7 +144,7 @@ async function fetchFromTMDB(stream, existingCategories) {
             }
         }
 
-        if (!tmdbData) {
+        if (!tmdbData && silent === false) {
             console.warn(
                 `⚠️ Não foi possível encontrar dados para: ${stream.stream_display_name} (${stream.tmdb_id || "sem id"})`
             );
@@ -175,8 +180,8 @@ async function fetchFromTMDB(stream, existingCategories) {
         };
     }
 }
-export async function organizeMovies(streams, categories, createCategories = true, silent = false) {
-    if(createCategories) {
+export async function organizeMovies(streams, categories, pushCeateCategories = true, silent = false) {
+    if(pushCeateCategories) {
         categories = await createCategories(categories);
     }
 
@@ -204,19 +209,40 @@ export async function organizeMovies(streams, categories, createCategories = tru
 
 // Deleta todas as categorias de filmes e cria as novas
 async function createCategories(allCategories) {
-    await db.query(
-        `DELETE FROM streams_categories WHERE category_type = 'movie'`
+  const db = await getDatabase();
+  const connection = await db.getConnection(); // se usar pool
+
+  try {
+    await connection.beginTransaction();
+
+    // Apaga as categorias antigas
+    await connection.query(
+      `DELETE FROM streams_categories WHERE category_type = 'movie'`
     );
+
+    // Reinsere as categorias
     for (let i = 0; i < allCategories.length; i++) {
-        const cat = allCategories[i];
-        const [res] = await db.query(
-            `INSERT INTO streams_categories (category_name, category_type, cat_order, is_adult)
-            VALUES (?, 'movie', ?, ?)`,
-            [cat.name, i, cat.is_adult || false]
-        );
-        cat.id = res.insertId;
+      const cat = allCategories[i];
+      const [res] = await connection.query(
+        `INSERT INTO streams_categories (category_name, category_type, cat_order, is_adult)
+         VALUES (?, 'movie', ?, ?)`,
+        [cat.name, i, cat.is_adult || false]
+      );
+      cat.id = res.insertId;
     }
+
+    // Só confirma se tudo deu certo
+    await connection.commit();
+
     return allCategories;
+  } catch (err) {
+    // Reverte tudo em caso de erro
+    await connection.rollback();
+    console.error("❌ Erro ao recriar categorias:", err.message);
+    throw err;
+  } finally {
+    connection.release?.(); // se for pool
+  }
 }
 
 /**
@@ -225,6 +251,7 @@ async function createCategories(allCategories) {
  * @param {*} allCategories 
  */
 async function mapCategories(categories) {
+    const db = await getDatabase();
     const existinCategories = await db.query(
         `SELECT id, category_name FROM streams_categories WHERE category_type = 'movie'`);
     
@@ -240,13 +267,30 @@ async function mapCategories(categories) {
     return categories.filter(cat => cat.id !== null); // Filtra categorias sem ID
 }
 async function updateCategories(stream, categories, silent = false) {
-    await db.query(
-        `UPDATE streams SET category_id = ? WHERE id = ?`,
-        [JSON.stringify(categories), stream.id]
+  const db = await getDatabase();
+  const connection = await db.getConnection(); // se for pool
+
+  try {
+    await connection.beginTransaction();
+
+    await connection.query(
+      `UPDATE streams SET category_id = ? WHERE id = ?`,
+      [JSON.stringify(categories), stream.id]
     );
-    if(silent === false) {
-        console.log(`Categorias atualizadas para: ${stream.stream_display_name} => [${categories.join(', ')}]`);
+
+    await connection.commit();
+
+    if (!silent) {
+      console.log(
+        `✅ Categorias atualizadas para: ${stream.stream_display_name} => [${categories.join(", ")}]`
+      );
     }
+  } catch (err) {
+    await connection.rollback();
+    console.error("❌ Erro ao atualizar categorias:", err.message);
+  } finally {
+    connection.release?.(); // se for pool
+  }
 }
 
 /**
@@ -287,7 +331,7 @@ export async function categorizeMovies(streams, categories, silent = false) {
         }
 
         const processedChunk = await Promise.all(
-            chunk.map((stream) => limit(() => fetchFromTMDB(stream, mappedCategories)))
+            chunk.map((stream) => limit(() => fetchFromTMDB(stream, mappedCategories, silent)))
         );
 
         allResults.push(...processedChunk);
