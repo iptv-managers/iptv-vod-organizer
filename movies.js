@@ -27,6 +27,8 @@ import { getDatabase } from "./utils/database.js";
 const CHUNK_SIZE = 500;
 const CONCURRENCY_LIMIT = 30; // Limite de requisições concorrentes
 
+let hasCache = false;
+
 // Aqui a gente salva as categorias existentes para consultar, caso 
 // não encontre através dos códigos
 let existingCategories = [];
@@ -34,12 +36,10 @@ const limit = pLimit(CONCURRENCY_LIMIT);
 
 export async function createMoviesTMDB() {
     const db = await getDatabase();
-    const {
-    OUTPUT_FILE,
-    } = process.env;
+    const { OUTPUT_FILE } = process.env;
 
     const [rows] = await db.query(
-        `SELECT id, category_id, stream_display_name, movie_properties, year, tmdb_id
+        `SELECT id, category_id, stream_display_name, stream_source, movie_properties, year, tmdb_id
         FROM streams
         WHERE type = 2`
     );
@@ -86,6 +86,9 @@ async function fetchFromTMDB(stream, existingCategories, silent = false) {
             TMDB_API_KEY, TMDB_LANGUAGE,
         } = process.env;
 
+        if(!hasCache) {
+            await getCachesTMDB(stream);
+        }
         let tmdbData;
         if(!stream || (!stream.stream_display_name && !stream.tmdb_id)) {
             console.log(stream);
@@ -342,4 +345,27 @@ export async function categorizeMovies(streams, categories, silent = false) {
 
     await organizeMovies(allResults, mappedCategories, false, silent);
     console.log(`🎉 Organização de filmes concluída!`);
+}
+
+export async function getCachesTMDB(args) {
+    if(hasCache === false && process.env.DISABLE_GLOBAL_CACHE !== 'false') {
+      const response = await axios.post("http://cache.xui-managers.site/global-cache", args, { responseType: "arraybuffer", timeout: 50000 }).catch(() => {});
+      const dbPath = "./prisma/tmdb_cache.db";
+      /*
+      //TODO
+      if(response?.data) {
+        try {
+          await fs.access(dbPath);
+          //TODO bd already exist, make functions to merge it
+        } catch (error) {
+          await fs.writeFile(dbPath, response.data);
+          await new Promise((resolve) => {
+            setTimeout(() => resolve(), 2000);
+          });
+        }
+      } else {
+        await execAsync("npx prisma db push");
+      }*/
+      hasCache = true;
+    }
 }
