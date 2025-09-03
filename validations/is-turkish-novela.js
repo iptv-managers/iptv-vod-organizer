@@ -50,8 +50,8 @@ export function isTurkishNovela(stream) {
   let score = 0;
 
   const match = stringSimilarity.findBestMatch(cleanName(stream?.title?.toLowerCase()) ?? cleanName(stream.stream_display_name?.toLowerCase()), turkishNovelaKeywords);
-  if (match.bestMatch.rating > 0.4) { 
-    // 0.4 é básico, necessario verificar
+  if (match.bestMatch.rating > 0.6) { 
+    // 0.6 é básico, necessario verificar
     score += 1;
   }
 
