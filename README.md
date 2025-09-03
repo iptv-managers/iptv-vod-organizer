@@ -1,5 +1,7 @@
 # XUI-VOD-ORGANIZER
 
+[![Telegram](https://img.shields.io/badge/Telegram-Join%20Chat-blue?logo=telegram)](https://t.me/xuimanagers)
+
 Através desse projeto você pode reorganizar os seus VODS presentes no XUI.one como você quiser.
 Com o código fonte completamente aberto, e seguro, você pode organizar os seus vods localmente em seu computador.
 
