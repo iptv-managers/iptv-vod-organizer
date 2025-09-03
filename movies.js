@@ -148,9 +148,9 @@ async function fetchFromTMDB(stream, existingCategories, silent = false) {
         }
 
         if (!tmdbData && silent === false) {
-            console.warn(
+            /*console.warn(
                 `⚠️ Não foi possível encontrar dados para: ${stream.stream_display_name} (${stream.tmdb_id || "sem id"})`
-            );
+            );*/
         }
         const existingCategoryNames = (JSON.parse(stream.category_id || "[]"))
             .map((catId) => {
