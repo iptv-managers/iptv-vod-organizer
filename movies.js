@@ -284,9 +284,9 @@ async function updateCategories(stream, categories, silent = false) {
     await connection.commit();
 
     if (!silent) {
-      console.log(
+      /*console.log(
         `✅ Categorias atualizadas para: ${stream.stream_display_name} => [${categories.join(", ")}]`
-      );
+      );*/
     }
   } catch (err) {
     await connection.rollback();
