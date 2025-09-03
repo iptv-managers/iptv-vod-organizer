@@ -14,7 +14,7 @@ export function getNetworksIds(stream, categories) {
         });
         if(exist) {
             categoriesIds.push(cat.id);
-            return;
+            return categoriesIds;
         }
         const existInCatName = stream?.category_names?.toLowerCase()?.includes(cat?.streamName?.toLowerCase())
         if(existInCatName)
