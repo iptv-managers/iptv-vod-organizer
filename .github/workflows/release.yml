@@ -50,7 +50,7 @@ jobs:
       - name: Package Project
         run: |
           mkdir release-package
-          cp -r index.js movies.js series.js .env.example cat-movies.json cat-series.json sincronizar.bat XUI Organizer.exe  node_modules/ package.json package-lock.json node-portable utils/ validations/
+          cp -r index.js movies.js series.js .env.example cat-movies.json cat-series.json sincronizar.bat "XUI Organizer.exe"  node_modules/ package.json package-lock.json node-portable utils/ validations/
           cp -r .env release-package/ || echo ".env not found, skipping"
 
       - name: Zip Release Package
