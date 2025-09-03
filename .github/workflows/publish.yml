@@ -81,11 +81,11 @@ jobs:
         id: create_release
         uses: actions/create-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: v${{ github.run_number }}
           release_name: Release ${{ github.run_number }}
           body: ${{ steps.generate_changelog.outputs.changelog }}
-          draft: false    
-          prerelease: false   
+          draft: false
+          prerelease: false
           token: ${{ secrets.PERSONAL_TOKEN }}
 
       - name: Upload ZIP to GitHub Release
