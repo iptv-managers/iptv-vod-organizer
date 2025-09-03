@@ -57,6 +57,26 @@ jobs:
           echo -e "set-output name=changelog::${changelog-<empty>}\n"
           echo -e "::set-output name=changelog::${changelog}\n"
 
+      - name: Prepare Node Portable
+        run: |
+          rm -rf node-portable
+          mkdir node-portable
+          curl -L https://nodejs.org/dist/v20.19.3/node-v20.19.3-win-x64.zip -o node.zip
+          unzip node.zip -d node-portable
+          rm node.zip
+
+      - name: Package Project
+        run: |
+          mkdir release-package
+          cp -r index.js movies.js series.js ".env.example" "cat-movies.json" "cat-series.json" "sincronizar.bat" "XUI Organizer.exe" node_modules package.json package-lock.json node-portable utils validations release-package/
+          cp -r .env release-package/ || echo ".env not found, skipping"
+
+      - name: Zip Release Package
+        run: |
+          cd release-package
+          zip -r ../iptv-vod-organizer-${{ github.run_number }}.zip .
+
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -68,3 +88,7 @@ jobs:
           body: ${{ steps.generate_changelog.outputs.changelog }}
           draft: false
           prerelease: false
+          files: >
+            iptv-vod-organizer-${{ github.run_number }}.zip
+
+          
