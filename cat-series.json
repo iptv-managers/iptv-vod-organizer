@@ -27,7 +27,7 @@
         "id": 4,
         "name": "Séries | Globoplay",
         "type": "stream",
-        "streamName": "globo"
+        "streamName": "globoplay"
     },
     {
         "id": 5,
@@ -85,6 +85,12 @@
         "id": 14,
         "name": "Séries | Doramas",
         "type": "doramas"
+    },
+    {
+        "id": 14,
+        "name": "Séries | Infantil",
+        "type": "genre",
+        "genreId": 10762
     },
     {
         "id": 15000,

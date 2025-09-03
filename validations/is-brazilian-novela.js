@@ -30,6 +30,7 @@ const brazilianNovelaKeywords = [
   "Carrossel",
   "Chiquititas",
   "Rebelde",
+  "Malhação",
 ];
 
 export function isBrazilianNovela(stream) {

@@ -12,9 +12,10 @@ export function getNetworksIds(stream, categories) {
         const exist = stream?.tmdb?.networks?.find(n => {
             return n?.name?.toLowerCase()?.includes(cat?.streamName?.toLowerCase())
         });
-        if(exist)
+        if(exist) {
             categoriesIds.push(cat.id);
-
+            return;
+        }
         const existInCatName = stream?.category_names?.toLowerCase()?.includes(cat?.streamName?.toLowerCase())
         if(existInCatName)
             categoriesIds.push(cat.id);
