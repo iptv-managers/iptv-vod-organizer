@@ -26,6 +26,7 @@ import { getDatabase } from "./utils/database.js";
 import { isTurkishNovela } from "./validations/is-turkish-novela.js";
 import { isBrazilianNovela } from "./validations/is-brazilian-novela.js";
 import { isDorama } from "./validations/is-dorama.js";
+import { isAnime } from "./validations/is-anime.js";
 import { getNetworksIds } from "./validations/get-networks.js";
 
 const CHUNK_SIZE = 500;
@@ -213,6 +214,9 @@ export async function organizeSeries(streams, categories, pushCeateCategories = 
         }
         if(isDorama(stream)) {
             category_ids.push(categories.find(cat => cat.type === 'doramas')?.id);
+        }
+        if(isAnime(stream)) {
+            category_ids.push(categories.find(cat => cat.type === 'animes')?.id);
         }
         category_ids.push(...getGenreIds(stream, categories));
         category_ids.push(...getNetworksIds(stream, categories));

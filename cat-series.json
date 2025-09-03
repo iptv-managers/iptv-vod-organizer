@@ -42,6 +42,12 @@
         "streamName": "disney"
     },
     {
+        "id": 6,
+        "name": "Séries | Discovery",
+        "type": "stream",
+        "streamName": "discovery"
+    },
+    {
         "id": 7,
         "name": "Séries | HBO Max",
         "type": "stream",
@@ -93,8 +99,13 @@
         "genreId": 10762
     },
     {
+        "id": 14,
+        "name": "Séries | Animes",
+        "type": "animes"
+    },
+    {
         "id": 15000,
-        "name": "Séries | Outras",
+        "name": "Séries | Outras Produtoras",
         "type": "uncategorized"
     },
     {
