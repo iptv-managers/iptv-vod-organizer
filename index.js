@@ -1,8 +1,26 @@
 import inquirer from "inquirer";
+import chalk from "chalk";
 import { createMoviesTMDB } from "./movies.js";
 import { createSeriesTMDB } from "./series.js";
 
+function showBanner() {
+  console.log(chalk.greenBright(`
+ __   __  __   __  ___          _______  __   __  __    _  _______ 
+|  |_|  ||  | |  ||   |        |       ||  | |  ||  |  | ||       |
+|       ||  | |  ||   |  ____  |  _____||  |_|  ||   |_| ||       |
+|       ||  |_|  ||   | |____| | |_____ |       ||       ||       |
+ |     | |       ||   |        |_____  ||_     _||  _    ||      _|
+|   _   ||       ||   |         _____| |  |   |  | | |   ||     |_ 
+|__| |__||_______||___|        |_______|  |___|  |_|  |__||_______|
+  `));
+  console.log(chalk.yellowBright("               🟢 XUI-SYNC - Organizador de VOD 🟢\n"));
+  console.log(chalk.yellowBright("                    🟢 www.xui-managers.site 🟢\n"));
+  console.log(chalk.yellowBright("               🟢 http://github.com/xui-managers 🟢\n"));
+}
+
 async function mainMenu() {
+  showBanner();
+
   const { escolha } = await inquirer.prompt([
     {
       type: "list",
@@ -18,10 +36,10 @@ async function mainMenu() {
 
   switch (escolha) {
     case "filmes":
-      createMoviesTMDB();
+      await createMoviesTMDB();
       break;
     case "series":
-      createSeriesTMDB();
+      await createSeriesTMDB();
       break;
     case "sair":
       console.log("\n👋 Saindo da aplicação...\n");
