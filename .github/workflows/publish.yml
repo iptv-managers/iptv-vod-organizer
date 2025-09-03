@@ -77,19 +77,16 @@ jobs:
           zip -r ../iptv-vod-organizer-${{ github.run_number }}.zip .
 
 
-      - name: Create Release
-        uses: meeDamian/github-release@2.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
         with:
-          token: ${{ secrets.PERSONAL_TOKEN }}
-          tag_name: ${{ github.ref }}
-          commitish: ${{ github.sha }}
-          name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.run_number }}
           body: ${{ steps.generate_changelog.outputs.changelog }}
-          draft: false
-          prerelease: false
-          allow_override: true
+          draft: false    
+          prerelease: false   
+          token: ${{ secrets.PERSONAL_TOKEN }}
 
       - name: Upload ZIP to GitHub Release
         uses: actions/upload-release-asset@v1
