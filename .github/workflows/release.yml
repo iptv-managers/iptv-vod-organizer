@@ -41,6 +41,7 @@ jobs:
       #  Build do pacote executável
       - name: Prepare Node Portable
         run: |
+          rm -rf node-portable
           mkdir node-portable
           curl -L https://nodejs.org/dist/v20.19.3/node-v20.19.3-win-x64.zip -o node.zip
           unzip node.zip -d node-portable
