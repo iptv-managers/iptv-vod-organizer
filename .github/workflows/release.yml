@@ -1,0 +1,64 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      increment:
+        type: choice
+        description: 'Tipo de incremento: patch, minor, major ou pre*'
+        required: true
+        default: 'patch'
+        options:
+          - patch
+          - minor
+          - major
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.3
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Release Version
+        run: npx release-it --increment ${{ github.event.inputs.increment }}
+
+      # --------------------------
+      #  Build do pacote executável
+      - name: Prepare Node Portable
+        run: |
+          mkdir node-portable
+          curl -L https://nodejs.org/dist/v20.19.3/node-v20.19.3-win-x64.zip -o node.zip
+          unzip node.zip -d node-portable
+          rm node.zip
+
+      - name: Package Project
+        run: |
+          mkdir release-package
+          cp -r index.js movies.js series.js .env.example cat-movies.json cat-series.json sincronizar.bat XUI Organizer.exe  node_modules/ package.json package-lock.json node-portable utils/ validations/
+          cp -r .env release-package/ || echo ".env not found, skipping"
+
+      - name: Zip Release Package
+        run: |
+          cd release-package
+          zip -r ../iptv-vod-organizer-${{ github.run_number }}.zip ./*
+
+      - name: Upload Release Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: iptv-vod-organizer
+          path: iptv-vod-organizer-${{ github.run_number }}.zip
