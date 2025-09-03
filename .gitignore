@@ -1,3 +1,4 @@
 node_modules
 .env
 movies.json
+series.json

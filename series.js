@@ -23,33 +23,35 @@ import { isAdult } from "./validations/is-adult.js";
 import { getGenreIds } from "./validations/get-genre.js";
 import { getYears } from "./validations/get-years.js";
 import { getDatabase } from "./utils/database.js";
+import { isTurkishNovela } from "./validations/is-turkish-novela.js";
+import { isBrazilianNovela } from "./validations/is-brazilian-novela.js";
+import { isDorama } from "./validations/is-dorama.js";
+import { getNetworksIds } from "./validations/get-networks.js";
 
 const CHUNK_SIZE = 500;
 const CONCURRENCY_LIMIT = 30; // Limite de requisições concorrentes
+const allItensToUpdate = [];
 
 // Aqui a gente salva as categorias existentes para consultar, caso 
 // não encontre através dos códigos
 let existingCategories = [];
 const limit = pLimit(CONCURRENCY_LIMIT);
+const OUTPUT_FILE = 'series.json';
 
-export async function createMoviesTMDB() {
+export async function createSeriesTMDB() {
     const db = await getDatabase();
-    const {
-    OUTPUT_FILE,
-    } = process.env;
 
     const [rows] = await db.query(
-        `SELECT id, category_id, stream_display_name, movie_properties, year, tmdb_id
-        FROM streams
-        WHERE type = 2`
+        `SELECT id, category_id, title, genre, release_date, year, tmdb_id
+        FROM streams_series`
     );
-    console.log(`Total de filmes encontrados: ${(rows).length}`);
+    console.log(`Total de séries encontrados: ${(rows).length}`);
 
     // Consultampos as categorias existentes no banco de dados
     const [cats] = await db.query(
         `SELECT id, category_name, is_adult
         FROM streams_categories
-        WHERE category_type = 'movie'`
+        WHERE category_type = 'series'`
     );
     existingCategories = cats;
 
@@ -70,14 +72,15 @@ export async function createMoviesTMDB() {
 
     // Salva todos os resultados em um único arquivo JSON
     fs.writeFileSync(OUTPUT_FILE, JSON.stringify(allResults, null, 2), 'utf-8');
-    console.log(`🎉 Todos os filmes processados! JSON final salvo em: ${OUTPUT_FILE}`);
-
+    console.log(`🎉 Todos as séries organizas! JSON final salvo em: ${OUTPUT_FILE}`);
+    console.log(`Começando a preparar e inserir no DB`);
 
     const streams = JSON.parse(fs.readFileSync(OUTPUT_FILE, 'utf-8'));
-    const categories = JSON.parse(fs.readFileSync('./cat-movies.json', 'utf-8'));
-    await organizeMovies(streams, categories, true);
+    const categories = JSON.parse(fs.readFileSync('./cat-series.json', 'utf-8'));
+    await organizeSeries(streams, categories, true);
+    await updateCategories(true, categories);
 
-    console.log(`🎉 Organização de filmes concluída!`);
+    console.log(`🎉 Organização de séries concluída!`);
 }
 
 async function fetchFromTMDB(stream, existingCategories, silent = false) {
@@ -87,22 +90,22 @@ async function fetchFromTMDB(stream, existingCategories, silent = false) {
         } = process.env;
 
         let tmdbData;
-        if(!stream || (!stream.stream_display_name && !stream.tmdb_id)) {
+        if(!stream || (!stream.title && !stream.tmdb_id)) {
             console.log(stream);
             return;
         }
         if (stream.tmdb_id) {
             // Se já tem o ID, busca direto
             const { data } = await axios.get(
-                `https://api.themoviedb.org/3/movie/${stream.tmdb_id}`,
+                `https://api.themoviedb.org/3/tv/${stream.tmdb_id}`,
                 { params: { api_key: TMDB_API_KEY, language: TMDB_LANGUAGE } }
             );
             tmdbData = data;
         } else {
             // 2 - Se não encontrou pelo ID, busca por nome + ano
-            const query = stream.stream_display_name;
+            const query = stream.title;
             const { data } = await axios.get(
-                `https://api.themoviedb.org/3/search/movie`,
+                `https://api.themoviedb.org/3/search/tv`,
                 {
                 params: {
                     api_key: TMDB_API_KEY,
@@ -114,19 +117,24 @@ async function fetchFromTMDB(stream, existingCategories, silent = false) {
             );
 
             if (data.results && data.results.length > 0) {
-                tmdbData = data.results[0];
+                // Achamos o TMDB, agora fazemos uma segunda chamada para organizar com as infos completas
+                const { data: result } = await axios.get(
+                    `https://api.themoviedb.org/3/tv/${data.results[0].id}`,
+                    { params: { api_key: TMDB_API_KEY, language: TMDB_LANGUAGE } }
+                );
+                tmdbData = result;
             }
         }
 
         if (!tmdbData) {
-            // Se não tem o data, procura pelo apenas
+            // Se não tem o data, procura pelo nome apenas
             const { data } = await axios.get(
-                `https://api.themoviedb.org/3/search/movie`,
+                `https://api.themoviedb.org/3/search/tv`,
                 { 
                     params: { 
                         api_key: TMDB_API_KEY, 
                         language: TMDB_LANGUAGE,
-                        query: cleanName(stream.stream_display_name)
+                        query: cleanName(stream.title)
                     } 
                 }
             );
@@ -146,17 +154,17 @@ async function fetchFromTMDB(stream, existingCategories, silent = false) {
 
         if (!tmdbData && silent === false) {
             console.warn(
-                `⚠️ Não foi possível encontrar dados para: ${stream.stream_display_name} (${stream.tmdb_id || "sem id"})`
+                `⚠️ Não foi possível encontrar dados para: ${cleanName(stream.title)} (${stream.tmdb_id || "sem id"})`
             );
         }
-        const existingCategoryNames = (JSON.parse(stream.category_id || "[]"))
+
+        const existingCategoryNames = JSON.parse(stream.category_id || "[]")
             .map((catId) => {
                 const cat = existingCategories.find((c) => c.id === catId);
                 return cat ? cat.category_name : null;
             })
             .filter(Boolean)
             .join(", ");
-        
         return {
             ...{category_names: existingCategoryNames},
             ...stream,
@@ -170,7 +178,7 @@ async function fetchFromTMDB(stream, existingCategories, silent = false) {
             process.exit(1);
         }
         console.error(
-            `Erro TMDB: ${stream.stream_display_name} (${stream.tmdb_id || "sem id"})`,
+            `Erro TMDB: ${stream.title} (${stream.tmdb_id || "sem id"})`,
             err.message
         );
 
@@ -180,30 +188,44 @@ async function fetchFromTMDB(stream, existingCategories, silent = false) {
         };
     }
 }
-export async function organizeMovies(streams, categories, pushCeateCategories = true, silent = false) {
+export async function organizeSeries(streams, categories, pushCeateCategories = true, silent = false) {
     if(pushCeateCategories) {
         categories = await createCategories(categories);
     }
-
     for (const stream of streams) {
         const category_ids = [];
         if(isAdult(stream)){
             category_ids.push(categories.find(cat => cat.type === 'adult')?.id);
-            await updateCategories(stream, category_ids, silent);
+            allItensToUpdate.push({
+                id: stream.id,
+                category_ids: JSON.stringify(category_ids)
+            });
             continue; // Se for adulto, não adiciona mais categorias
         }
         if(isSubtitled(stream)) {
             category_ids.push(categories.find(cat => cat.type === 'subtitled')?.id);
         }
+        if(isTurkishNovela(stream)) {
+            category_ids.push(categories.find(cat => cat.type === 'novelasturcas')?.id);
+        }
+        if(isBrazilianNovela(stream)) {
+            category_ids.push(categories.find(cat => cat.type === 'novelasbr')?.id);
+        }
+        if(isDorama(stream)) {
+            category_ids.push(categories.find(cat => cat.type === 'doramas')?.id);
+        }
         category_ids.push(...getGenreIds(stream, categories));
+        category_ids.push(...getNetworksIds(stream, categories));
         category_ids.push(...getYears(stream, categories));
 
         // Se não preencher os requisitos, adiciona a categoria padrão
         if(category_ids.length === 0) {
             category_ids.push(categories.find(cat => cat.type === 'uncategorized')?.id);
         }
-        await updateCategories(stream, category_ids, silent);
-
+        allItensToUpdate.push({
+            id: stream.id,
+            category_ids: JSON.stringify(category_ids)
+        });
     }
 }
 
@@ -217,7 +239,7 @@ async function createCategories(allCategories) {
 
     // Apaga as categorias antigas
     await connection.query(
-      `DELETE FROM streams_categories WHERE category_type = 'movie'`
+      `DELETE FROM streams_categories WHERE category_type = 'series'`
     );
 
     // Reinsere as categorias
@@ -225,7 +247,7 @@ async function createCategories(allCategories) {
       const cat = allCategories[i];
       const [res] = await connection.query(
         `INSERT INTO streams_categories (category_name, category_type, cat_order, is_adult)
-         VALUES (?, 'movie', ?, ?)`,
+         VALUES (?, 'series', ?, ?)`,
         [cat.name, i, cat.is_adult || false]
       );
       cat.id = res.insertId;
@@ -253,7 +275,7 @@ async function createCategories(allCategories) {
 async function mapCategories(categories) {
     const db = await getDatabase();
     const existinCategories = await db.query(
-        `SELECT id, category_name FROM streams_categories WHERE category_type = 'movie'`);
+        `SELECT id, category_name FROM streams_categories WHERE category_type = 'series'`);
     
     for (const cat of categories) {
         const existingCat = existinCategories[0].find(c => c.category_name === cat.name);
@@ -266,23 +288,26 @@ async function mapCategories(categories) {
     }
     return categories.filter(cat => cat.id !== null); // Filtra categorias sem ID
 }
-async function updateCategories(stream, categories, silent = false) {
+async function updateCategories(silent = false) {
   const db = await getDatabase();
   const connection = await db.getConnection(); // se for pool
+  await connection.beginTransaction();
 
   try {
-    await connection.beginTransaction();
-
-    await connection.query(
-      `UPDATE streams SET category_id = ? WHERE id = ?`,
-      [JSON.stringify(categories), stream.id]
+    await Promise.all(
+        allItensToUpdate.map(item => {
+                console.log(`Atualizando: ${item.id} com ${item.category_ids}`);
+                connection.query(
+                    `UPDATE streams_series SET category_id = ? WHERE id = ?`,
+                    [item.category_ids, item.id]
+                )
+            }
+        )
     );
-
     await connection.commit();
-
     if (!silent) {
       console.log(
-        `✅ Categorias atualizadas para: ${stream.stream_display_name} => [${categories.join(", ")}]`
+        `✅ Categorias atualizadas!`
       );
     }
   } catch (err) {
@@ -311,13 +336,13 @@ async function updateCategories(stream, categories, silent = false) {
  */
 export async function categorizeMovies(streams, categories, silent = false) {
     if(!categories || categories.length === 0) { 
-        categories = JSON.parse(fs.readFileSync('./cat-movies.json', 'utf-8'));
+        categories = JSON.parse(fs.readFileSync('./cat-series.json', 'utf-8'));
     }
     
-    // Filtramos filmes e series que nao contenham nomes e que podem vir
+    // Filtramos series que nao contenham nomes e que podem vir
     // com bug da tabela do cliente, afinal filmes sem nomes não existem rs
     streams = streams.filter((row) => {
-        return row.stream_display_name
+        return row.title
     });
         
     const mappedCategories = await mapCategories(categories);
@@ -340,6 +365,6 @@ export async function categorizeMovies(streams, categories, silent = false) {
         }
     }
 
-    await organizeMovies(allResults, mappedCategories, false, silent);
+    await organizeSeries(allResults, mappedCategories, false, silent);
     console.log(`🎉 Organização de filmes concluída!`);
 }

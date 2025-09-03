@@ -1,5 +1,6 @@
 import inquirer from "inquirer";
-import { createTMDB } from "./movies.js";
+import { createMoviesTMDB } from "./movies.js";
+import { createSeriesTMDB } from "./series.js";
 
 async function mainMenu() {
   const { escolha } = await inquirer.prompt([
@@ -17,10 +18,10 @@ async function mainMenu() {
 
   switch (escolha) {
     case "filmes":
-      createTMDB();
+      createMoviesTMDB();
       break;
     case "series":
-      console.log("\n👉 Você escolheu organizar categorias de SÉRIES.\nAinda não está pronta essa função.");
+      createSeriesTMDB();
       break;
     case "sair":
       console.log("\n👋 Saindo da aplicação...\n");

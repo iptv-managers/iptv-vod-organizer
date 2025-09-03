@@ -24,6 +24,12 @@
         "streamName": "netflix"
     },
     {
+        "id": 4,
+        "name": "Séries | Globoplay",
+        "type": "stream",
+        "streamName": "globo"
+    },
+    {
         "id": 5,
         "name": "Séries | Amazon Prime",
         "type": "stream",
@@ -68,7 +74,7 @@
     {
         "id": 12,
         "name": "Séries | Novelas",
-        "type": "novelas"
+        "type": "novelasbr"
     },
     {
         "id": 13,

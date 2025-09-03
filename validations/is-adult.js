@@ -3,10 +3,11 @@ export function isAdult(stream) {
         return false;
     }
 
-    if(stream.stream_display_name.toLowerCase().includes('xxx') || 
-         stream.stream_display_name.toLowerCase().includes('adult') ||
-         stream.category_names?.toLowerCase()?.includes('adult') ||
-         stream.category_names?.toLowerCase()?.includes('xxx')
+    const name = stream?.stream_display_name ?? stream?.title;
+    if(name.toLowerCase().includes('xxx') || 
+         name.toLowerCase().includes('adult') ||
+         name?.toLowerCase()?.includes('adult') ||
+         name?.toLowerCase()?.includes('xxx')
         ) {
           return true;
      }
