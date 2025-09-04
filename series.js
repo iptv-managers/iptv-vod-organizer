@@ -1,17 +1,12 @@
 /**
- * Só execute esse script a primeira vez, depois use o nosso sincronizador, onde ele ja faz apenas nos filmes 
- * recentemente adicionados pelo sincronizador
+ * Esse script é feito para sincronização total do banco de dados.
+ * TODO: Necessário função correta para sincronizar apenas complementares.
  * 
  * Esse codigo ele pega os itens do banco de dados do XUI, apaga todas as categorias, 
  * e ordena todos os filmes de acordo com as categorias presentes no array
  * é necessário que uma API do TMDB, e também que as informações estejam contidas no banco de dados do XUI corretamente
+ * Caso algo dê errado no meio do processo, seu servidor não será afetado, rollback ativo no mysql
  * 
- * 
- * types disponiveis
- *      - year - A categoria representa um ano em especifico
- *      - genre - A categoria representa um genero em especifico
- *      - collection - A categoria representa uma colecao de filmes
- *      - streaming - A categoria representa um streaming em especifico. Apenas alguns disponiveis
  */
 
 import axios from "axios";
@@ -28,6 +23,7 @@ import { isBrazilianNovela } from "./validations/is-brazilian-novela.js";
 import { isDorama } from "./validations/is-dorama.js";
 import { isAnime } from "./validations/is-anime.js";
 import { getNetworksIds } from "./validations/get-networks.js";
+import { updateProgress } from "./utils/update-progress.js";
 
 const CHUNK_SIZE = 500;
 const CONCURRENCY_LIMIT = 30; // Limite de requisições concorrentes
@@ -36,6 +32,7 @@ const allItensToUpdate = [];
 // Aqui a gente salva as categorias existentes para consultar, caso 
 // não encontre através dos códigos
 let existingCategories = [];
+let categoryIdsToDelete = [];
 const limit = pLimit(CONCURRENCY_LIMIT);
 const OUTPUT_FILE = 'series.json';
 
@@ -61,7 +58,7 @@ export async function createSeriesTMDB() {
     // Processa em chunks
     for (let i = 0; i < (rows).length; i += CHUNK_SIZE) {
         const chunk = (rows).slice(i, i + CHUNK_SIZE);
-        console.log(`Processando chunk ${Math.floor(i / CHUNK_SIZE) + 1} (${chunk.length} filmes)`);
+        console.log(`Processando chunk ${Math.floor(i / CHUNK_SIZE) + 1} (${chunk.length} séries)`);
 
         const processedChunk = await Promise.all(
             chunk.map((stream) => limit(() => fetchFromTMDB(stream, existingCategories)))
@@ -153,12 +150,6 @@ async function fetchFromTMDB(stream, existingCategories, silent = false) {
             }
         }
 
-        if (!tmdbData && silent === false) {
-            console.warn(
-                `⚠️ Não foi possível encontrar dados para: ${cleanName(stream.title)} (${stream.tmdb_id || "sem id"})`
-            );
-        }
-
         const existingCategoryNames = JSON.parse(stream.category_id || "[]")
             .map((catId) => {
                 const cat = existingCategories.find((c) => c.id === catId);
@@ -240,11 +231,10 @@ async function createCategories(allCategories) {
 
   try {
     await connection.beginTransaction();
-
-    // Apaga as categorias antigas
-    await connection.query(
-      `DELETE FROM streams_categories WHERE category_type = 'series'`
+    const [rows] = await connection.query(
+    `SELECT id FROM streams_categories WHERE category_type = 'series'`
     );
+    categoryIdsToDelete = rows.map(row => row.id);
 
     // Reinsere as categorias
     for (let i = 0; i < allCategories.length; i++) {
@@ -294,20 +284,26 @@ async function mapCategories(categories) {
 }
 async function updateCategories(silent = false) {
   const db = await getDatabase();
-  const connection = await db.getConnection(); // se for pool
+  const connection = await db.getConnection();
   await connection.beginTransaction();
 
   try {
-    await Promise.all(
-        allItensToUpdate.map(item => {
-                console.log(`Atualizando: ${item.id} com ${item.category_ids}`);
-                connection.query(
-                    `UPDATE streams_series SET category_id = ? WHERE id = ?`,
-                    [item.category_ids, item.id]
-                )
-            }
-        )
-    );
+    if (categoryIdsToDelete.length > 0) {
+        await connection.query(
+            `DELETE FROM streams_categories WHERE id IN (?)`,
+            [categoryIdsToDelete]
+        );
+    }
+    let current = 0;
+    for (const item of allItensToUpdate) {
+        await connection.query(
+            `UPDATE streams_series SET category_id = ? WHERE id = ?`,
+            [item.category_ids, item.id]
+        );
+
+        current++;
+        updateProgress(current, allItensToUpdate.length);
+    }
     await connection.commit();
     if (!silent) {
       console.log(
@@ -318,7 +314,7 @@ async function updateCategories(silent = false) {
     await connection.rollback();
     console.error("❌ Erro ao atualizar categorias:", err.message);
   } finally {
-    connection.release?.(); // se for pool
+    connection.release?.(); 
   }
 }
 

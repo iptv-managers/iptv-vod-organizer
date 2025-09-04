@@ -4,14 +4,7 @@
  * 
  * Esse codigo ele pega os itens do banco de dados do XUI, apaga todas as categorias, 
  * e ordena todos os filmes de acordo com as categorias presentes no array
- * é necessário que uma API do TMDB, e também que as informações estejam contidas no banco de dados do XUI corretamente
  * 
- * 
- * types disponiveis
- *      - year - A categoria representa um ano em especifico
- *      - genre - A categoria representa um genero em especifico
- *      - collection - A categoria representa uma colecao de filmes
- *      - streaming - A categoria representa um streaming em especifico. Apenas alguns disponiveis
  */
 
 import axios from "axios";
@@ -28,7 +21,6 @@ import { updateProgress } from "./utils/update-progress.js";
 const CHUNK_SIZE = 500;
 const CONCURRENCY_LIMIT = 30; // Limite de requisições concorrentes
 const allItensToUpdate = [];
-let current = 1;
 
 let hasCache = false;
 let categoryIdsToDelete = [];
